@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { StockResearch, InvestmentDecision } from '@/lib/types';
-import { getDecisionColor } from '@/lib/utils';
 
 interface ResearchFormProps {
   stockId: number;
@@ -57,14 +56,15 @@ export default function ResearchForm({ stockId, initialResearch, onSave }: Resea
         break_conditions: initialResearch.break_conditions || '',
         investment_decision: initialResearch.investment_decision || '',
         confidence_score: initialResearch.confidence_score ? String(initialResearch.confidence_score) : '',
-        research_date: initialResearch.research_date || new Date().toISOString().split('T')[0],
+        research_date:
+          initialResearch.research_date || new Date().toISOString().split('T')[0],
         notes: initialResearch.notes || '',
       });
     }
   }, [initialResearch]);
 
   const handleChange = useCallback((field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   }, []);
 
   const handleBlur = useCallback((field: keyof FormData) => {
@@ -104,15 +104,13 @@ export default function ResearchForm({ stockId, initialResearch, onSave }: Resea
       const savedResearch = data as StockResearch;
       setLastSaved(new Date());
       onSave(savedResearch);
-      
+
       if (!isAutoSave) {
-        alert('Research saved successfully!');
+        // success silently via indicator
       }
     } catch (err) {
       console.error('Save failed:', err);
-      if (!isAutoSave) {
-        alert('Failed to save research. Please try again.');
-      }
+      if (!isAutoSave) alert('Failed to save research. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -124,45 +122,45 @@ export default function ResearchForm({ stockId, initialResearch, onSave }: Resea
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Research Template</h2>
+        <h2 className="text-lg font-semibold text-foreground">Research Template</h2>
         <div className="flex items-center gap-3">
           {lastSaved && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              Auto-saved: {lastSaved.toLocaleTimeString()}
+            <span className="text-xs text-muted">
+              {isSaving ? 'Saving...' : `Saved ${lastSaved.toLocaleTimeString()}`}
             </span>
           )}
           <select
             value={formData.status}
             onChange={(e) => handleChange('status', e.target.value as FormData['status'])}
             onBlur={() => handleBlur('status')}
-            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-2 py-1 text-sm rounded-md border border-app bg-card text-foreground"
           >
-            <option value="not_researched">Not Researched</option>
+            <option value="not_researched">Not Started</option>
             <option value="in_progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Bull Thesis <span className="text-red-500">*</span>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+            Bull Thesis
           </label>
           <textarea
             value={formData.bull_thesis}
             onChange={(e) => handleChange('bull_thesis', e.target.value)}
             onBlur={() => handleBlur('bull_thesis')}
             rows={4}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-            placeholder="Why is this a great investment? Key drivers, moat, management quality, market opportunity..."
+            className="w-full px-3 py-2 text-sm rounded-md border border-app bg-card text-foreground placeholder-muted focus:outline-none focus:border-primary resize-y"
+            placeholder="Why this is a great investment. Moat, management, market opportunity..."
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
             Base Case
           </label>
           <textarea
@@ -170,13 +168,13 @@ export default function ResearchForm({ stockId, initialResearch, onSave }: Resea
             onChange={(e) => handleChange('base_case', e.target.value)}
             onBlur={() => handleBlur('base_case')}
             rows={3}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-            placeholder="Most likely scenario. Expected revenue/profit growth, valuation trajectory, key assumptions..."
+            className="w-full px-3 py-2 text-sm rounded-md border border-app bg-card text-foreground placeholder-muted focus:outline-none focus:border-primary resize-y"
+            placeholder="Most likely scenario. Expected growth, valuation, assumptions..."
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
             Bear Case
           </label>
           <textarea
@@ -184,61 +182,90 @@ export default function ResearchForm({ stockId, initialResearch, onSave }: Resea
             onChange={(e) => handleChange('bear_case', e.target.value)}
             onBlur={() => handleBlur('bear_case')}
             rows={3}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-            placeholder="What could go wrong? Competition, regulation, execution risk, margin compression, macro risks..."
+            className="w-full px-3 py-2 text-sm rounded-md border border-app bg-card text-foreground placeholder-muted focus:outline-none focus:border-primary resize-y"
+            placeholder="What could go wrong. Competition, regulation, execution risk..."
           />
         </div>
 
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Break Conditions (When to Sell/Exit)
+          <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+            Break Conditions
           </label>
           <textarea
             value={formData.break_conditions}
             onChange={(e) => handleChange('break_conditions', e.target.value)}
             onBlur={() => handleBlur('break_conditions')}
             rows={3}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-            placeholder="Specific triggers to exit: fundamentals deteriorate, thesis broken, better opportunity, valuation extreme..."
+            className="w-full px-3 py-2 text-sm rounded-md border border-app bg-card text-foreground placeholder-muted focus:outline-none focus:border-primary resize-y"
+            placeholder="When to sell/exit. Specific triggers to exit the position..."
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
             Investment Decision
           </label>
-          <select
-            value={formData.investment_decision}
-            onChange={(e) => handleChange('investment_decision', e.target.value)}
-            onBlur={() => handleBlur('investment_decision')}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Select decision</option>
+          <div className="grid grid-cols-3 gap-1.5">
             {decisionOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() =>
+                  handleChange(
+                    'investment_decision',
+                    formData.investment_decision === opt.value ? '' : opt.value
+                  )
+                }
+                className={`px-2 py-1.5 text-sm rounded-md border transition-colors ${
+                  formData.investment_decision === opt.value
+                    ? opt.value === 'buy'
+                      ? 'bg-success/15 border-success text-success'
+                      : opt.value === 'watchlist'
+                      ? 'bg-warning/15 border-warning text-warning'
+                      : 'bg-danger/15 border-danger text-danger'
+                    : 'border-app bg-card text-muted hover:text-foreground'
+                }`}
+              >
+                {opt.label}
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Confidence Score (1-5)
+          <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+            Confidence
           </label>
-          <select
-            value={formData.confidence_score}
-            onChange={(e) => handleChange('confidence_score', e.target.value)}
-            onBlur={() => handleBlur('confidence_score')}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Select score</option>
-            {[5, 4, 3, 2, 1].map((n) => (
-              <option key={n} value={String(n)}>{n} - {'★'.repeat(n)}{'☆'.repeat(5 - n)}</option>
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() =>
+                  handleChange(
+                    'confidence_score',
+    formData.confidence_score === String(n) ? '' : String(n)
+                  )
+                }
+                className="text-2xl leading-none transition-colors"
+                aria-label={`Set confidence to ${n}`}
+              >
+                <span
+                  className={
+                    formData.confidence_score && parseInt(formData.confidence_score) >= n
+                      ? 'text-warning'
+                      : 'text-muted/30 hover:text-muted'
+                  }
+                >
+                  ★
+                </span>
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
             Research Date
           </label>
           <input
@@ -246,39 +273,46 @@ export default function ResearchForm({ stockId, initialResearch, onSave }: Resea
             value={formData.research_date}
             onChange={(e) => handleChange('research_date', e.target.value)}
             onBlur={() => handleBlur('research_date')}
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full px-3 py-2 text-sm rounded-md border border-app bg-card text-foreground focus:outline-none focus:border-primary"
           />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+            Auto-save
+          </label>
+          <p className="text-xs text-muted py-2">Changes save automatically after 2s of inactivity</p>
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Additional Notes
+        <label className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+          Notes
         </label>
         <textarea
           value={formData.notes}
           onChange={(e) => handleChange('notes', e.target.value)}
           onBlur={() => handleBlur('notes')}
           rows={3}
-          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+          className="w-full px-3 py-2 text-sm rounded-md border border-app bg-card text-foreground placeholder-muted focus:outline-none focus:border-primary resize-y"
           placeholder="Any other observations, source links, follow-up items..."
         />
       </div>
 
-      <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-end gap-2 pt-3 border-t border-app">
         <button
           type="button"
           onClick={() => setFormData(initialFormData)}
-          className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          className="px-3 py-1.5 text-sm text-muted hover:text-foreground"
         >
-          Clear Form
+          Clear form
         </button>
         <button
           type="submit"
           disabled={isSaving}
-          className="px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-1.5 text-sm rounded-md bg-primary text-white font-medium hover:bg-primary/90 disabled:opacity-50"
         >
-          {isSaving ? 'Saving...' : 'Save Research'}
+          {isSaving ? 'Saving...' : 'Save research'}
         </button>
       </div>
     </form>

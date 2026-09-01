@@ -1,16 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Stock, StockResearch, RedFlag } from '@/lib/types';
 import { formatCurrency, formatPercentage, formatNumber, getDecisionColor } from '@/lib/utils';
 import ResearchForm from '@/components/ResearchForm';
 import RedFlagBadge from '@/components/RedFlagBadge';
+import WatchlistButton from '@/components/WatchlistButton';
 
 interface StockDetailClientProps {
   initialStock: Stock;
   initialResearch: StockResearch | null;
   initialRedFlags: RedFlag[];
   priorityScore: number;
+  initialInWatchlist: boolean;
 }
 
 export default function StockDetailClient({
@@ -18,254 +21,302 @@ export default function StockDetailClient({
   initialResearch,
   initialRedFlags,
   priorityScore,
+  initialInWatchlist,
 }: StockDetailClientProps) {
   const [research, setResearch] = useState<StockResearch | null>(initialResearch);
-  const [redFlags, setRedFlags] = useState<RedFlag[]>(initialRedFlags);
+  const [redFlags] = useState<RedFlag[]>(initialRedFlags);
+  const [inWatchlist, setInWatchlist] = useState(initialInWatchlist);
   const [activeTab, setActiveTab] = useState<'overview' | 'research'>('overview');
 
   const handleResearchSave = (savedResearch: StockResearch) => {
     setResearch(savedResearch);
   };
 
-  const highFlags = redFlags.filter(f => f.severity === 'high').length;
-  const mediumFlags = redFlags.filter(f => f.severity === 'medium').length;
-  const lowFlags = redFlags.filter(f => f.severity === 'low').length;
+  const highFlags = redFlags.filter((f) => f.severity === 'high').length;
+  const mediumFlags = redFlags.filter((f) => f.severity === 'medium').length;
+  const lowFlags = redFlags.filter((f) => f.severity === 'low').length;
   const hasHighFlags = highFlags > 0;
 
   const status = research?.status || 'not_researched';
   const decision = research?.investment_decision;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-6 flex gap-2 border-b border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-              activeTab === 'overview'
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('research')}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-              activeTab === 'research'
-                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            Research
-          </button>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      {/* Header */}
+      <div className="mb-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground mb-3"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to dashboard
+        </Link>
 
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <MetricCard
-                label="Priority Score"
-                value={priorityScore}
-                suffix="/100"
-                color="indigo"
-                description="Higher = more interesting"
-              />
-              <MetricCard
-                label="Red Flags"
-                value={highFlags + mediumFlags + lowFlags}
-                color={hasHighFlags ? 'red' : mediumFlags > 0 ? 'yellow' : 'green'}
-                description={`${highFlags} High, ${mediumFlags} Med, ${lowFlags} Low`}
-              />
-              <MetricCard
-                label="Research Status"
-                value={status.replace('_', ' ')}
-                color={status === 'completed' ? 'green' : status === 'in_progress' ? 'blue' : 'gray'}
-                description={decision ? `Decision: ${decision}` : 'Not yet decided'}
-              />
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-mono text-muted">#{initialStock.s_no}</span>
+              {initialStock.ticker && (
+                <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-card text-muted">
+                  {initialStock.ticker}
+                </span>
+              )}
             </div>
-
-            {redFlags.length > 0 && (
-              <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <span className="text-red-500">🚩</span> Red Flags Detected
-                </h2>
-                <RedFlagBadge flags={redFlags} />
-              </section>
-            )}
-
-            <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Price & Valuation</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <MetricItem label="CMP" value={formatCurrency(initialStock.cmp, 2)} />
-                <MetricItem label="P/E Ratio" value={formatNumber(initialStock.pe)} />
-                <MetricItem label="Market Cap" value={formatCurrency(initialStock.market_cap_cr)} suffix=" Cr" />
-                <MetricItem label="Div Yield" value={formatPercentage(initialStock.div_yield)} />
-              </div>
-            </section>
-
-            <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Performance Metrics</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <MetricItem
-                  label="ROCE"
-                  value={formatPercentage(initialStock.roce)}
-                  highlight={initialStock.roce !== null && initialStock.roce < 12}
-                />
-                <MetricItem
-                  label="Profit Growth 3Y"
-                  value={formatPercentage(initialStock.profit_var_3yrs)}
-                  highlight={initialStock.profit_var_3yrs !== null && initialStock.profit_var_3yrs < 15}
-                />
-                <MetricItem
-                  label="Sales Growth 3Y"
-                  value={formatPercentage(initialStock.sales_var_3yrs)}
-                  highlight={initialStock.sales_var_3yrs !== null && initialStock.sales_var_3yrs < 15}
-                />
-                <MetricItem label="Priority Score" value={String(priorityScore)} suffix="/100" />
-              </div>
-            </section>
-
-            <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quarterly Data</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <MetricItem
-                  label="Net Profit (Qtr)"
-                  value={formatCurrency(initialStock.np_qtr_cr, 2)}
-                  suffix=" Cr"
-                />
-                <MetricItem
-                  label="Qtr Profit Var"
-                  value={formatPercentage(initialStock.qtr_profit_var)}
-                  highlight={initialStock.qtr_profit_var !== null && initialStock.qtr_profit_var < 0}
-                />
-                <MetricItem
-                  label="Sales (Qtr)"
-                  value={formatCurrency(initialStock.sales_qtr_cr, 2)}
-                  suffix=" Cr"
-                />
-                <MetricItem
-                  label="Qtr Sales Var"
-                  value={formatPercentage(initialStock.qtr_sales_var)}
-                  highlight={initialStock.qtr_sales_var !== null && initialStock.qtr_sales_var < 0}
-                />
-              </div>
-            </section>
-
-            {research && (
-              <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Research Summary</h2>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Last updated: {new Date(research.last_updated).toLocaleDateString()}
-                  </span>
-                </div>
-                <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
-                  {research.investment_decision && (
-                    <div>
-                      <span className="font-medium">Decision:</span>{' '}
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${getDecisionColor(research.investment_decision)}`}>
-                        {research.investment_decision.toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  {research.confidence_score && (
-                    <div>
-                      <span className="font-medium">Confidence:</span>{' '}
-                      <span className="font-mono">{research.confidence_score}/5</span>
-                    </div>
-                  )}
-                  {research.bull_thesis && (
-                    <div>
-                      <span className="font-medium text-green-600 dark:text-green-400">Bull Thesis:</span>
-                      <p className="mt-1">{research.bull_thesis}</p>
-                    </div>
-                  )}
-                  {research.bear_case && (
-                    <div>
-                      <span className="font-medium text-red-600 dark:text-red-400">Bear Case:</span>
-                      <p className="mt-1">{research.bear_case}</p>
-                    </div>
-                  )}
-                  {research.break_conditions && (
-                    <div>
-                      <span className="font-medium text-orange-600 dark:text-orange-400">Break Conditions:</span>
-                      <p className="mt-1">{research.break_conditions}</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
+            <h1 className="text-2xl font-bold text-foreground">{initialStock.name}</h1>
           </div>
-        )}
 
-        {activeTab === 'research' && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <ResearchForm
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`px-2.5 py-1 text-xs font-medium rounded ${
+                status === 'completed'
+                  ? 'bg-success/15 text-success'
+                  : status === 'in_progress'
+                  ? 'bg-warning/15 text-warning'
+                  : 'bg-card text-muted border border-app'
+              }`}
+            >
+              {status === 'not_researched' ? 'Not Researched' : status === 'in_progress' ? 'In Progress' : 'Completed'}
+            </span>
+            {decision && (
+              <span className={`px-2.5 py-1 text-xs font-medium rounded ${getDecisionColor(decision)}`}>
+                {decision.toUpperCase()}
+              </span>
+            )}
+            <WatchlistButton
               stockId={initialStock.id}
-              initialResearch={research}
-              onSave={handleResearchSave}
+              initialInWatchlist={inWatchlist}
+              onUpdate={setInWatchlist}
             />
           </div>
-        )}
-      </main>
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  suffix = '',
-  color = 'gray',
-  description,
-}: {
-  label: string;
-  value: string | number;
-  suffix?: string;
-  color?: 'indigo' | 'red' | 'yellow' | 'green' | 'blue' | 'gray';
-  description?: string;
-}) {
-  const colorClasses = {
-    indigo: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
-    red: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-    yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-    green: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-    blue: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    gray: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-  };
-
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{label}</p>
-      <div className="flex items-baseline gap-1">
-        <span className="text-2xl font-bold text-gray-900 dark:text-white">{value}</span>
-        {suffix && <span className="text-gray-500 dark:text-gray-400">{suffix}</span>}
+        </div>
       </div>
-      {description && (
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{description}</p>
+
+      {/* Tabs */}
+      <div className="mb-4 flex gap-1 border-b border-app">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'overview'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted hover:text-foreground'
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('research')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'research'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted hover:text-foreground'
+          }`}
+        >
+          Research
+        </button>
+      </div>
+
+      {activeTab === 'overview' && (
+        <div className="space-y-4">
+          {/* Top stats row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard
+              label="Priority Score"
+              value={priorityScore}
+              suffix="/100"
+              tone={priorityScore > 60 ? 'positive' : priorityScore > 30 ? 'warning' : 'danger'}
+            />
+            <StatCard
+              label="Red Flags"
+              value={highFlags + mediumFlags + lowFlags}
+              tone={hasHighFlags ? 'danger' : mediumFlags > 0 ? 'warning' : 'positive'}
+              sublabel={`${highFlags}H · ${mediumFlags}M · ${lowFlags}L`}
+            />
+            <StatCard
+              label="Research"
+              value={status === 'not_researched' ? 'None' : status === 'in_progress' ? 'In Progress' : 'Done'}
+              tone={status === 'completed' ? 'positive' : status === 'in_progress' ? 'warning' : 'neutral'}
+            />
+            <StatCard
+              label="Confidence"
+              value={research?.confidence_score ? `${research.confidence_score}/5` : '—'}
+              tone="neutral"
+            />
+          </div>
+
+          {/* Red flags */}
+          {redFlags.length > 0 && (
+            <div className="rounded-lg border border-app bg-card p-4">
+              <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <span>🚩</span> Red Flags
+              </h2>
+              <RedFlagBadge flags={redFlags} />
+            </div>
+          )}
+
+          {/* Metric cards grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <MetricCard
+              title="Price & Valuation"
+              items={[
+                { label: 'CMP', value: formatCurrency(initialStock.cmp, 2) },
+                { label: 'P/E Ratio', value: formatNumber(initialStock.pe) },
+                { label: 'Market Cap', value: formatCurrency(initialStock.market_cap_cr, 0), suffix: 'Cr' },
+                { label: 'Div Yield', value: formatPercentage(initialStock.div_yield) },
+              ]}
+            />
+            <MetricCard
+              title="Performance"
+              items={[
+                {
+                  label: 'ROCE',
+                  value: formatPercentage(initialStock.roce),
+                  warning: initialStock.roce !== null && initialStock.roce < 12,
+                },
+                {
+                  label: 'Profit 3Y',
+                  value: formatPercentage(initialStock.profit_var_3yrs),
+                  warning: initialStock.profit_var_3yrs !== null && initialStock.profit_var_3yrs < 15,
+                },
+                {
+                  label: 'Sales 3Y',
+                  value: formatPercentage(initialStock.sales_var_3yrs),
+                  warning: initialStock.sales_var_3yrs !== null && initialStock.sales_var_3yrs < 15,
+                },
+                { label: 'Score', value: `${priorityScore}/100` },
+              ]}
+            />
+            <MetricCard
+              title="Quarterly Data"
+              items={[
+                { label: 'NP (Qtr)', value: formatCurrency(initialStock.np_qtr_cr, 2), suffix: 'Cr' },
+                {
+                  label: 'Qtr Profit Var',
+                  value: formatPercentage(initialStock.qtr_profit_var),
+                  warning: initialStock.qtr_profit_var !== null && initialStock.qtr_profit_var < 0,
+                },
+                { label: 'Sales (Qtr)', value: formatCurrency(initialStock.sales_qtr_cr, 2), suffix: 'Cr' },
+                {
+                  label: 'Qtr Sales Var',
+                  value: formatPercentage(initialStock.qtr_sales_var),
+                  warning: initialStock.qtr_sales_var !== null && initialStock.qtr_sales_var < 0,
+                },
+              ]}
+            />
+          </div>
+
+          {/* Research summary */}
+          {research && (
+            <div className="rounded-lg border border-app bg-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-foreground">Research Summary</h2>
+                {research.last_updated && (
+                  <span className="text-xs text-muted">
+                    Last updated: {new Date(research.last_updated).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                {research.bull_thesis && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-success mb-1">Bull Thesis</p>
+                    <p className="text-muted leading-relaxed">{research.bull_thesis}</p>
+                  </div>
+                )}
+                {research.bear_case && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-danger mb-1">Bear Case</p>
+                    <p className="text-muted leading-relaxed">{research.bear_case}</p>
+                  </div>
+                )}
+                {research.base_case && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-primary mb-1">Base Case</p>
+                    <p className="text-muted leading-relaxed">{research.base_case}</p>
+                  </div>
+                )}
+                {research.break_conditions && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-warning mb-1">Break Conditions</p>
+                    <p className="text-muted leading-relaxed">{research.break_conditions}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'research' && (
+        <div className="rounded-lg border border-app bg-card p-5">
+          <ResearchForm
+            stockId={initialStock.id}
+            initialResearch={research}
+            onSave={handleResearchSave}
+          />
+        </div>
       )}
     </div>
   );
 }
 
-function MetricItem({
+function StatCard({
   label,
   value,
-  suffix = '',
-  highlight = false,
+  suffix,
+  sublabel,
+  tone = 'neutral',
 }: {
   label: string;
-  value: string;
+  value: string | number;
   suffix?: string;
-  highlight?: boolean;
+  sublabel?: string;
+  tone?: 'positive' | 'warning' | 'danger' | 'neutral';
+}) {
+  const toneClasses = {
+    positive: 'text-success',
+    warning: 'text-warning',
+    danger: 'text-danger',
+    neutral: 'text-foreground',
+  };
+  return (
+    <div className="rounded-lg border border-app bg-card p-3">
+      <p className="text-xs text-muted uppercase tracking-wide">{label}</p>
+      <div className="flex items-baseline gap-1 mt-1">
+        <span className={`text-xl font-semibold ${toneClasses[tone]}`}>{value}</span>
+        {suffix && <span className="text-sm text-muted">{suffix}</span>}
+      </div>
+      {sublabel && <p className="text-xs text-muted mt-1">{sublabel}</p>}
+    </div>
+  );
+}
+
+function MetricCard({
+  title,
+  items,
+}: {
+  title: string;
+  items: { label: string; value: string; suffix?: string; warning?: boolean }[];
 }) {
   return (
-    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">{label}</p>
-      <p className={`font-mono text-lg font-semibold ${highlight ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-        {value}{suffix}
-      </p>
+    <div className="rounded-lg border border-app bg-card p-4">
+      <h2 className="text-sm font-semibold text-foreground mb-3">{title}</h2>
+      <div className="space-y-2.5">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-center justify-between">
+            <span className="text-xs text-muted">{item.label}</span>
+            <span
+              className={`text-sm font-mono font-medium ${
+                item.warning ? 'text-danger' : 'text-foreground'
+              }`}
+            >
+              {item.value}
+              {item.suffix && <span className="text-muted ml-0.5">{item.suffix}</span>}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
