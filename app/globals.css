@@ -1,37 +1,58 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Dark mode by default - finance/stocks app */
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+  --card: #1e293b;
+  --card-hover: #334155;
+  --border: #334155;
+  --primary: #3b82f6;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --muted: #94a3b8;
+}
+
+.light {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --primary: #3b82f6;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --muted: #64748b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-muted: var(--muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-}
-
+html,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
-}
-
-* {
-  box-sizing: border-box;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -44,45 +65,60 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: theme('colors.gray.400') transparent;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+::-webkit-scrollbar-track {
+  background: var(--background);
 }
 
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
 }
 
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: theme('colors.gray.400');
-  border-radius: 3px;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
-.dark .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: theme('colors.gray.600');
+/* Reusable utility classes */
+.font-mono {
+  font-family: var(--font-mono), 'Fira Code', monospace;
 }
 
-.focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900;
+.text-positive {
+  color: var(--success);
 }
 
-.btn-primary {
-  @apply px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+.text-negative {
+  color: var(--danger);
 }
 
-.btn-secondary {
-  @apply px-4 py-2 text-gray-700 dark:text-gray-300 font-medium rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors;
+.text-warning {
+  color: var(--warning);
 }
 
-.card {
-  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700;
+.bg-card {
+  background: var(--card);
 }
 
-.input {
-  @apply w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500;
+.bg-card-hover:hover {
+  background: var(--card-hover);
+}
+
+.border-app {
+  border-color: var(--border);
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+/* Smooth transitions for hover states */
+button,
+a {
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }

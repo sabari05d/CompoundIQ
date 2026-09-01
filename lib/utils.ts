@@ -149,25 +149,25 @@ export function mapCSVRowToStock(row: Record<string, string>): Omit<Stock, 'id' 
 
 export function getSeverityColor(severity: 'high' | 'medium' | 'low'): string {
   switch (severity) {
-    case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800';
-    case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
-    case 'low': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+    case 'high': return 'bg-danger/15 text-danger border-danger/30';
+    case 'medium': return 'bg-warning/15 text-warning border-warning/30';
+    case 'low': return 'bg-primary/15 text-primary border-primary/30';
   }
 }
 
 export function getStatusColor(status: 'not_researched' | 'in_progress' | 'completed'): string {
   switch (status) {
-    case 'not_researched': return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-    case 'in_progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
-    case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+    case 'not_researched': return 'bg-card text-muted border border-app';
+    case 'in_progress': return 'bg-warning/15 text-warning';
+    case 'completed': return 'bg-success/15 text-success';
   }
 }
 
 export function getDecisionColor(decision: 'buy' | 'watchlist' | 'pass' | null): string {
   switch (decision) {
-    case 'buy': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-    case 'watchlist': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
-    case 'pass': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-    default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+    case 'buy': return 'bg-success/15 text-success';
+    case 'watchlist': return 'bg-warning/15 text-warning';
+    case 'pass': return 'bg-danger/15 text-danger';
+    default: return 'bg-card text-muted';
   }
 }

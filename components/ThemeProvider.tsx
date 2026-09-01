@@ -22,21 +22,21 @@ interface ThemeContextType {
 }
 
 const defaultContext: ThemeContextType = {
-  theme: 'system',
+  theme: 'dark',
   setTheme: () => {},
-  resolvedTheme: 'light',
+  resolvedTheme: 'dark',
 };
 
 const ThemeContext = createContext<ThemeContextType>(defaultContext);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('system');
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<Theme>('dark');
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const stored = localStorage.getItem('theme') as Theme | 'dark';
+    const stored = localStorage.getItem('theme') as Theme | null;
     if (stored) {
       setTheme(stored);
     }
@@ -44,31 +44,33 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!mounted) return;
-    
-    let resolved: 'light' | 'dark' = 'light';
+
+    let resolved: 'light' | 'dark' = 'dark';
     if (theme === 'system') {
       resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     } else {
       resolved = theme;
     }
-    
+
     setResolvedTheme(resolved);
     document.documentElement.classList.toggle('dark', resolved === 'dark');
+    document.documentElement.classList.toggle('light', resolved === 'light');
     localStorage.setItem('theme', theme);
   }, [theme, mounted]);
 
   useEffect(() => {
     if (!mounted) return;
-    
+
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = () => {
       if (theme === 'system') {
         const resolved = mediaQuery.matches ? 'dark' : 'light';
         setResolvedTheme(resolved);
         document.documentElement.classList.toggle('dark', resolved === 'dark');
+        document.documentElement.classList.toggle('light', resolved === 'light');
       }
     };
-    
+
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme, mounted]);
