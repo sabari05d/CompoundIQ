@@ -1,103 +1,55 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
-import { Stock, StockResearch, RedFlag } from '@/lib/types';
+import { useStocks } from '@/contexts/StocksContext';
 import { formatCurrency, formatPercentage, formatNumber, calculatePriorityScore, getStatusColor, getDecisionColor } from '@/lib/utils';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import EmptyState from '@/components/EmptyState';
-import RedFlagBadge from '@/components/RedFlagBadge';
 
 type SortKey = 'added_desc' | 'roce_desc' | 'profit_growth_desc' | 'priority_score_desc';
-
-interface EnrichedWatchlistItem {
-  watchlistId: number;
-  stock: Stock;
-  research: StockResearch | null;
-  redFlags: RedFlag[];
-  priorityScore: number;
-  addedAt: string;
-}
+type Filter = 'all' | 'buy' | 'watch';
 
 export default function WatchlistPage() {
-  const [items, setItems] = useState<EnrichedWatchlistItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { stocks, researchMap, redFlagsMap, watchlistSet, loading, removeFromWatchlist, upsertResearch } = useStocks();
   const [sortKey, setSortKey] = useState<SortKey>('added_desc');
   const [exporting, setExporting] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'buy' | 'watch'>('all');
-
-  const fetchWatchlist = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: watchRes, error: wErr } = await supabase
-        .from('watchlist')
-        .select('*')
-        .order('added_at', { ascending: false });
-      if (wErr) throw wErr;
-      if (!watchRes || watchRes.length === 0) {
-        setItems([]);
-        setLoading(false);
-        return;
-      }
-
-      const stockIds = watchRes.map((w) => w.stock_id);
-      const [stocksRes, researchRes, flagsRes] = await Promise.all([
-        supabase.from('stocks').select('*').in('id', stockIds),
-        supabase.from('stock_research').select('*').in('stock_id', stockIds),
-        supabase.from('red_flags').select('*').in('stock_id', stockIds),
-      ]);
-
-      if (stocksRes.error) throw stocksRes.error;
-      if (researchRes.error) throw researchRes.error;
-      if (flagsRes.error) throw flagsRes.error;
-
-      const stockMap = new Map<number, Stock>(stocksRes.data?.map((s) => [s.id, s]) || []);
-      const researchMap = new Map<number, StockResearch>(
-        researchRes.data?.map((r) => [r.stock_id, r]) || []
-      );
-      const flagsMap = new Map<number, RedFlag[]>();
-      flagsRes.data?.forEach((f) => {
-        const existing = flagsMap.get(f.stock_id) || [];
-        existing.push(f);
-        flagsMap.set(f.stock_id, existing);
-      });
-
-      const enriched: EnrichedWatchlistItem[] = watchRes
-        .map((w) => {
-          const stock = stockMap.get(w.stock_id);
-          if (!stock) return null;
-          return {
-            watchlistId: w.id,
-            stock,
-            research: researchMap.get(w.stock_id) || null,
-            redFlags: flagsMap.get(w.stock_id) || [],
-            priorityScore: calculatePriorityScore(stock),
-            addedAt: w.added_at,
-          };
-        })
-        .filter((x): x is EnrichedWatchlistItem => x !== null);
-
-      setItems(enriched);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load watchlist');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [filter, setFilter] = useState<Filter>('all');
+  const [addedMap, setAddedMap] = useState<Map<number, string>>(new Map());
 
   useEffect(() => {
-    fetchWatchlist();
-  }, [fetchWatchlist]);
+    // Fetch watchlist add dates
+    async function fetchDates() {
+      const { data } = await import('@/lib/supabase').then((m) => m.supabase.from('watchlist').select('stock_id, added_at'));
+      if (data) {
+        const m = new Map<number, string>();
+        data.forEach((d: any) => m.set(d.stock_id, d.added_at));
+        setAddedMap(m);
+      }
+    }
+    fetchDates();
+  }, [watchlistSet]);
 
-  const handleRemove = async (watchlistId: number) => {
+  const items = useMemo(() => {
+    return stocks
+      .filter((s) => watchlistSet.has(s.id))
+      .map((stock) => {
+        const research = researchMap.get(stock.id) || null;
+        const redFlags = redFlagsMap.get(stock.id) || [];
+        return {
+          stock,
+          research,
+          redFlags,
+          priorityScore: calculatePriorityScore(stock),
+          addedAt: addedMap.get(stock.id) || new Date().toISOString(),
+        };
+      });
+  }, [stocks, watchlistSet, researchMap, redFlagsMap, addedMap]);
+
+  const handleRemove = async (stockId: number) => {
     if (!confirm('Remove this stock from your watchlist?')) return;
     try {
-      const { error } = await supabase.from('watchlist').delete().eq('id', watchlistId);
-      if (error) throw error;
-      setItems((prev) => prev.filter((i) => i.watchlistId !== watchlistId));
+      await removeFromWatchlist(stockId);
     } catch (err) {
       alert('Failed to remove from watchlist');
     }
@@ -106,38 +58,7 @@ export default function WatchlistPage() {
   const handleUpdateDecision = async (stockId: number, decision: 'buy' | 'watchlist' | 'pass' | '') => {
     try {
       const value = decision === '' ? null : decision;
-      const { error } = await supabase
-        .from('stock_research')
-        .upsert(
-          { stock_id: stockId, investment_decision: value },
-          { onConflict: 'stock_id' }
-        );
-      if (error) throw error;
-      setItems((prev) =>
-        prev.map((i) =>
-          i.stock.id === stockId
-            ? {
-                ...i,
-                research: i.research
-                  ? { ...i.research, investment_decision: value, last_updated: new Date().toISOString() }
-                  : {
-                      id: 0,
-                      stock_id: stockId,
-                      status: 'in_progress' as const,
-                      investment_decision: value,
-                      confidence_score: null,
-                      research_date: new Date().toISOString().split('T')[0],
-                      last_updated: new Date().toISOString(),
-                      bull_thesis: null,
-                      base_case: null,
-                      bear_case: null,
-                      break_conditions: null,
-                      notes: null,
-                    },
-              }
-            : i
-        )
-      );
+      await upsertResearch(stockId, { investment_decision: value });
     } catch (err) {
       alert('Failed to update decision');
     }
@@ -147,18 +68,8 @@ export default function WatchlistPage() {
     setExporting(true);
     try {
       const headers = [
-        'S.No',
-        'Name',
-        'Ticker',
-        'CMP',
-        'P/E',
-        'ROCE',
-        'Profit 3Y',
-        'Sales 3Y',
-        'Market Cap (Cr)',
-        'Decision',
-        'Confidence',
-        'Added Date',
+        'S.No', 'Name', 'Ticker', 'CMP', 'P/E', 'ROCE', 'Profit 3Y', 'Sales 3Y',
+        'Market Cap (Cr)', 'Decision', 'Confidence', 'Added Date',
       ];
       const rows = filteredAndSortedItems.map((i) => [
         i.stock.s_no,
@@ -174,9 +85,7 @@ export default function WatchlistPage() {
         i.research?.confidence_score || '',
         new Date(i.addedAt).toLocaleDateString(),
       ]);
-      const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join(
-        '\n'
-      );
+      const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -189,27 +98,29 @@ export default function WatchlistPage() {
     }
   };
 
-  const filteredAndSortedItems = items
-    .filter((i) => {
-      if (filter === 'all') return true;
-      if (filter === 'buy') return i.research?.investment_decision === 'buy';
-      if (filter === 'watch') return i.research?.investment_decision === 'watchlist';
-      return true;
-    })
-    .sort((a, b) => {
-      switch (sortKey) {
-        case 'added_desc':
-          return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
-        case 'roce_desc':
-          return (b.stock.roce || 0) - (a.stock.roce || 0);
-        case 'profit_growth_desc':
-          return (b.stock.profit_var_3yrs || 0) - (a.stock.profit_var_3yrs || 0);
-        case 'priority_score_desc':
-          return b.priorityScore - a.priorityScore;
-      }
-    });
+  const filteredAndSortedItems = useMemo(() => {
+    return items
+      .filter((i) => {
+        if (filter === 'all') return true;
+        if (filter === 'buy') return i.research?.investment_decision === 'buy';
+        if (filter === 'watch') return i.research?.investment_decision === 'watchlist';
+        return true;
+      })
+      .sort((a, b) => {
+        switch (sortKey) {
+          case 'added_desc':
+            return new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime();
+          case 'roce_desc':
+            return (b.stock.roce || 0) - (a.stock.roce || 0);
+          case 'profit_growth_desc':
+            return (b.stock.profit_var_3yrs || 0) - (a.stock.profit_var_3yrs || 0);
+          case 'priority_score_desc':
+            return b.priorityScore - a.priorityScore;
+        }
+      });
+  }, [items, filter, sortKey]);
 
-  if (loading) {
+  if (loading && items.length === 0) {
     return <LoadingSpinner fullScreen message="Loading watchlist..." />;
   }
 
@@ -246,7 +157,6 @@ export default function WatchlistPage() {
         </div>
       </div>
 
-      {/* Filter tabs */}
       <div className="flex gap-1 mb-4 border-b border-app">
         {[
           { key: 'all', label: 'All', count: items.length },
@@ -255,7 +165,7 @@ export default function WatchlistPage() {
         ].map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setFilter(tab.key as typeof filter)}
+            onClick={() => setFilter(tab.key as Filter)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
               filter === tab.key
                 ? 'border-primary text-primary'
@@ -267,28 +177,12 @@ export default function WatchlistPage() {
         ))}
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
-          {error}
-        </div>
-      )}
-
       {filteredAndSortedItems.length === 0 ? (
         <div className="rounded-lg border border-app bg-card">
           <EmptyState
             icon={
-              <svg
-                className="w-12 h-12"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
+              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             }
             title={items.length === 0 ? 'Watchlist is empty' : 'No matches'}
@@ -334,7 +228,7 @@ export default function WatchlistPage() {
                   const highFlags = i.redFlags.filter((f) => f.severity === 'high').length;
 
                   return (
-                    <tr key={i.watchlistId} className="hover:bg-card-hover/50 group">
+                    <tr key={stock.id} className="hover:bg-card-hover/50 group">
                       <td className="px-3 py-3 text-muted font-mono text-xs">{stock.s_no}</td>
                       <td className="px-3 py-3">
                         <Link href={`/stock/${stock.id}`} className="block">
@@ -402,7 +296,7 @@ export default function WatchlistPage() {
                             View
                           </Link>
                           <button
-                            onClick={() => handleRemove(i.watchlistId)}
+                            onClick={() => handleRemove(stock.id)}
                             className="text-xs font-medium text-danger hover:underline"
                           >
                             Remove

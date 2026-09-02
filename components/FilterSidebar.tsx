@@ -45,8 +45,7 @@ export default function FilterSidebar({
     min: number | null,
     max: number | null
   ) => {
-    updateFilter(`${prefix}_min` as keyof DashboardFilters, min);
-    updateFilter(`${prefix}_max` as keyof DashboardFilters, max);
+    onFiltersChange({ ...filters, [`${prefix}_min`]: min, [`${prefix}_max`]: max });
   };
 
   const completionPct = stockCount > 0 ? Math.round((researchedCount / stockCount) * 100) : 0;
@@ -135,7 +134,7 @@ export default function FilterSidebar({
                 type="text"
                 value={filters.search}
                 onChange={(e) => updateFilter('search', e.target.value)}
-                placeholder="Company name..."
+                placeholder="Company name or ticker..."
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-app bg-card text-foreground placeholder-muted focus:outline-none focus:border-primary"
               />
             </div>

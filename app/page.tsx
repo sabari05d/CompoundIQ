@@ -1,87 +1,22 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Stock, StockResearch, RedFlag, WatchlistItem, DashboardFilters, SortOption } from '@/lib/types';
+import { useMemo, useState, useEffect, Suspense } from 'react';
+import { useStocks } from '@/contexts/StocksContext';
+import { useFilters } from '@/contexts/FiltersContext';
 import { calculatePriorityScore } from '@/lib/utils';
 import StockTable from '@/components/StockTable';
 import FilterSidebar from '@/components/FilterSidebar';
 import Pagination from '@/components/Pagination';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import EmptyState from '@/components/EmptyState';
+import { SortOption } from '@/lib/types';
 
 const PAGE_SIZE = 20;
 
-export default function DashboardPage() {
-  const [stocks, setStocks] = useState<Stock[]>([]);
-  const [researchMap, setResearchMap] = useState<Map<number, StockResearch>>(new Map());
-  const [redFlagsMap, setRedFlagsMap] = useState<Map<number, RedFlag[]>>(new Map());
-  const [watchlistSet, setWatchlistSet] = useState<Set<number>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<DashboardFilters>({
-    pe_min: null,
-    pe_max: null,
-    roce_min: null,
-    roce_max: null,
-    profit_var_3yrs_min: null,
-    profit_var_3yrs_max: null,
-    search: '',
-    show_unresearched_only: false,
-    show_red_flags_only: false,
-    sort_by: 'priority_score_desc',
-  });
+function DashboardContent() {
+  const { stocks, researchMap, redFlagsMap, watchlistSet, loading, error, refresh } = useStocks();
+  const { filters, currentPage, setFilters, setCurrentPage, clearFilters } = useFilters();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [stocksRes, researchRes, flagsRes, watchRes] = await Promise.all([
-        supabase.from('stocks').select('*').order('s_no', { ascending: true }),
-        supabase.from('stock_research').select('*'),
-        supabase.from('red_flags').select('*'),
-        supabase.from('watchlist').select('stock_id'),
-      ]);
-
-      if (stocksRes.error) throw stocksRes.error;
-      if (researchRes.error) throw researchRes.error;
-      if (flagsRes.error) throw flagsRes.error;
-      if (watchRes.error) throw watchRes.error;
-
-      setStocks(stocksRes.data || []);
-
-      const rMap = new Map<number, StockResearch>();
-      researchRes.data?.forEach((r) => rMap.set(r.stock_id, r));
-      setResearchMap(rMap);
-
-      const fMap = new Map<number, RedFlag[]>();
-      flagsRes.data?.forEach((f) => {
-        const existing = fMap.get(f.stock_id) || [];
-        existing.push(f);
-        fMap.set(f.stock_id, existing);
-      });
-      setRedFlagsMap(fMap);
-
-      const wSet = new Set<number>(watchRes.data?.map((w) => w.stock_id) || []);
-      setWatchlistSet(wSet);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Reset to page 1 whenever filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
 
   const peValues = stocks.map((s) => s.pe).filter((v): v is number => v !== null);
   const roceValues = stocks.map((s) => s.roce).filter((v): v is number => v !== null);
@@ -193,22 +128,22 @@ export default function DashboardPage() {
       pe: 'pe_asc',
     };
     if (sortMap[key]) {
-      setFilters((prev) => ({ ...prev, sort_by: sortMap[key] }));
+      setFilters({ ...filters, sort_by: sortMap[key] });
     }
   };
 
-  if (loading) {
+  if (loading && stocks.length === 0) {
     return <LoadingSpinner fullScreen message="Loading stocks..." />;
   }
 
-  if (error) {
+  if (error && stocks.length === 0) {
     return (
       <div className="max-w-md mx-auto p-6 mt-12">
         <div className="rounded-lg border border-danger/30 bg-danger/10 p-4">
           <h2 className="text-sm font-semibold text-danger mb-1">Error loading dashboard</h2>
           <p className="text-sm text-muted mb-3">{error}</p>
           <button
-            onClick={fetchData}
+            onClick={refresh}
             className="px-3 py-1.5 text-sm rounded-md bg-primary text-white hover:bg-primary/90"
           >
             Retry
@@ -240,6 +175,15 @@ export default function DashboardPage() {
               <h1 className="text-xl font-semibold text-foreground">Stocks</h1>
               <p className="text-xs text-muted">
                 {filteredStocks.length} of {stocks.length} stocks
+                {(filters.pe_min !== null || filters.pe_max !== null || filters.roce_min !== null ||
+                  filters.roce_max !== null || filters.search) && (
+                  <button
+                    onClick={clearFilters}
+                    className="ml-2 text-primary hover:underline"
+                  >
+                    Clear filters
+                  </button>
+                )}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -266,6 +210,14 @@ export default function DashboardPage() {
                 }
                 title="No stocks found"
                 description="Try adjusting your filters or search query to see more results."
+                action={
+                  <button
+                    onClick={clearFilters}
+                    className="px-3 py-1.5 text-sm rounded-md bg-primary text-white hover:bg-primary/90"
+                  >
+                    Clear filters
+                  </button>
+                }
               />
             ) : (
               <>
@@ -291,5 +243,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner fullScreen />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
