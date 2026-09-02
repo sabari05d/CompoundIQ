@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useStocks } from '@/contexts/StocksContext';
 import { StockResearch, InvestmentDecision } from '@/lib/types';
 
 interface ResearchFormProps {
@@ -41,6 +41,7 @@ const initialFormData: FormData = {
 };
 
 export default function ResearchForm({ stockId, initialResearch, onSave }: ResearchFormProps) {
+  const { upsertResearch } = useStocks();
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -80,33 +81,22 @@ export default function ResearchForm({ stockId, initialResearch, onSave }: Resea
     setIsSaving(true);
 
     try {
-      const payload = {
+      const savedResearch = await upsertResearch(stockId, {
         stock_id: stockId,
         status: formData.status,
         bull_thesis: formData.bull_thesis || null,
         base_case: formData.base_case || null,
         bear_case: formData.bear_case || null,
         break_conditions: formData.break_conditions || null,
-        investment_decision: formData.investment_decision || null,
+        investment_decision: (formData.investment_decision || null) as InvestmentDecision | null,
         confidence_score: formData.confidence_score ? parseInt(formData.confidence_score) : null,
         research_date: formData.research_date || new Date().toISOString().split('T')[0],
         notes: formData.notes || null,
-      };
+      });
 
-      const { data, error } = await supabase
-        .from('stock_research')
-        .upsert(payload, { onConflict: 'stock_id' })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const savedResearch = data as StockResearch;
-      setLastSaved(new Date());
-      onSave(savedResearch);
-
-      if (!isAutoSave) {
-        // success silently via indicator
+      if (savedResearch) {
+        setLastSaved(new Date());
+        onSave(savedResearch);
       }
     } catch (err) {
       console.error('Save failed:', err);
@@ -216,15 +206,14 @@ export default function ResearchForm({ stockId, initialResearch, onSave }: Resea
                     formData.investment_decision === opt.value ? '' : opt.value
                   )
                 }
-                className={`px-2 py-1.5 text-sm rounded-md border transition-colors ${
-                  formData.investment_decision === opt.value
+                className={`px-2 py-1.5 text-sm rounded-md border transition-colors ${formData.investment_decision === opt.value
                     ? opt.value === 'buy'
                       ? 'bg-success/15 border-success text-success'
                       : opt.value === 'watchlist'
-                      ? 'bg-warning/15 border-warning text-warning'
-                      : 'bg-danger/15 border-danger text-danger'
+                        ? 'bg-warning/15 border-warning text-warning'
+                        : 'bg-danger/15 border-danger text-danger'
                     : 'border-app bg-card text-muted hover:text-foreground'
-                }`}
+                  }`}
               >
                 {opt.label}
               </button>
@@ -244,7 +233,7 @@ export default function ResearchForm({ stockId, initialResearch, onSave }: Resea
                 onClick={() =>
                   handleChange(
                     'confidence_score',
-    formData.confidence_score === String(n) ? '' : String(n)
+                    formData.confidence_score === String(n) ? '' : String(n)
                   )
                 }
                 className="text-2xl leading-none transition-colors"

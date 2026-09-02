@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useStocks } from '@/contexts/StocksContext';
 
 interface WatchlistButtonProps {
   stockId: number;
@@ -17,31 +17,19 @@ export default function WatchlistButton({
   variant = 'primary',
   onUpdate,
 }: WatchlistButtonProps) {
-  const [inWatchlist, setInWatchlist] = useState(initialInWatchlist);
+  const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useStocks();
+  const inWatchlist = isInWatchlist(stockId);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    setInWatchlist(initialInWatchlist);
-  }, [initialInWatchlist]);
 
   const toggle = async () => {
     setLoading(true);
     try {
       if (inWatchlist) {
-        const { error } = await supabase
-          .from('watchlist')
-          .delete()
-          .eq('stock_id', stockId);
-        if (error) throw error;
-        setInWatchlist(false);
+        await removeFromWatchlist(stockId);
         onUpdate?.(false);
       } else {
-        const { error } = await supabase
-          .from('watchlist')
-          .insert({ stock_id: stockId });
-        if (error) throw error;
-        setInWatchlist(true);
+        await addToWatchlist(stockId);
         onUpdate?.(true);
       }
       router.refresh();
